@@ -15,16 +15,16 @@ const (
 	MaxPageSize = 50
 )
 
-type Order string
+type OrderType string
 
 const (
-	Desc Order = "DESC"
-	Asc  Order = "ASC"
+	Desc OrderType = "DESC"
+	Asc  OrderType = "ASC"
 )
 
 type Sort struct {
-	Column string
-	Order  Order
+	Column string    `json:"column"`
+	Order  OrderType `json:"order"`
 }
 
 func (s Sort) String() string {
@@ -55,11 +55,11 @@ func NewSort(s string) (Sort, bool) {
 }
 
 type Page struct {
-	Size   uint32
-	Page   uint32
-	More   bool
-	Column string
-	Sort   []Sort
+	Size   uint32 `json:"size"`
+	Page   uint32 `json:"page"`
+	More   bool   `json:"more"`
+	Column string `json:"column"`
+	Order  []Sort `json:"sort"`
 }
 
 func NewPage(size, page uint32, sort ...Sort) *Page {
@@ -70,16 +70,16 @@ func NewPage(size, page uint32, sort ...Sort) *Page {
 		page = 1
 	}
 	return &Page{
-		Size: size,
-		Page: page,
-		Sort: sort,
+		Size:  size,
+		Page:  page,
+		Order: sort,
 	}
 }
 
 func (p *Page) GetOrder(defaultSort ...string) []Sort {
 	// if page has sort, use it
-	if p != nil && len(p.Sort) != 0 {
-		return p.Sort
+	if p != nil && len(p.Order) != 0 {
+		return p.Order
 	}
 	// if page has column, use default sort
 	if p == nil || p.Column == "" {
@@ -123,48 +123,49 @@ func (p *Page) Limit() uint64 {
 	return n
 }
 
-// PaginatorOption is a function that sets an option on a paginator.
-type PaginatorOption[T any] func(*Paginator[T])
-
 // WithDefaultSize sets the default page size.
-func WithDefaultSize[T any](size uint32) PaginatorOption[T] {
-	return func(p *Paginator[T]) { p.defaultSize = size }
+func WithDefaultSize(size uint32) func(*PaginatorOption) {
+	return func(o *PaginatorOption) { o.defaultSize = size }
 }
 
 // WithMaxSize sets the maximum page size.
-func WithMaxSize[T any](size uint32) PaginatorOption[T] {
-	return func(p *Paginator[T]) { p.maxSize = size }
+func WithMaxSize(size uint32) func(*PaginatorOption) {
+	return func(o *PaginatorOption) { o.maxSize = size }
 }
 
 // WithSort sets the default sort order.
-func WithSort[T any](sort ...string) PaginatorOption[T] {
-	return func(p *Paginator[T]) { p.defaultSort = sort }
+func WithSort(sort ...string) func(*PaginatorOption) {
+	return func(o *PaginatorOption) { o.defaultSort = sort }
 }
 
 // WithColumnFunc sets a function to transform column names.
-func WithColumnFunc[T any](f func(string) string) PaginatorOption[T] {
-	return func(p *Paginator[T]) { p.columnFunc = f }
+func WithColumnFunc(f func(string) string) func(*PaginatorOption) {
+	return func(o *PaginatorOption) { o.columnFunc = f }
 }
 
 // NewPaginator creates a new paginator with the given options.
 // Default page size is 10 and max size is 50.
-func NewPaginator[T any](options ...PaginatorOption[T]) Paginator[T] {
-	p := Paginator[T]{
+func NewPaginator[T any](options ...func(*PaginatorOption)) Paginator[T] {
+	o := PaginatorOption{
 		defaultSize: DefaultPageSize,
 		maxSize:     MaxPageSize,
 	}
-	for _, opt := range options {
-		opt(&p)
+	for _, fn := range options {
+		fn(&o)
 	}
-	return p
+	return Paginator[T]{PaginatorOption: o}
 }
 
-// Paginator is a helper to paginate results.
-type Paginator[T any] struct {
+type PaginatorOption struct {
 	defaultSize uint32
 	maxSize     uint32
 	defaultSort []string
 	columnFunc  func(string) string
+}
+
+// Paginator is a helper to paginate results.
+type Paginator[T any] struct {
+	PaginatorOption
 }
 
 func (p Paginator[T]) getOrder(page *Page) []string {

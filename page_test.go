@@ -18,10 +18,10 @@ func TestPagination(t *testing.T) {
 		Sort        = "ID"
 	)
 	paginator := pgkit.NewPaginator[T](
-		pgkit.WithColumnFunc[T](strings.ToLower),
-		pgkit.WithDefaultSize[T](DefaultSize),
-		pgkit.WithMaxSize[T](MaxSize),
-		pgkit.WithSort[T](Sort),
+		pgkit.WithColumnFunc(strings.ToLower),
+		pgkit.WithDefaultSize(DefaultSize),
+		pgkit.WithMaxSize(MaxSize),
+		pgkit.WithSort(Sort),
 	)
 	page := pgkit.NewPage(0, 0)
 	result, query := paginator.PrepareQuery(sq.Select("*").From("t"), page)
